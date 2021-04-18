@@ -4,6 +4,7 @@
     "description": "A rudimentary UI with backend for evaluating PHP remotely. For debugging purposes only.",
     "type": "library",
     "license": "MIT",
+    "keywords": ["laravel", "php", "debugging", "eval"],
     "authors": [
         {
             "name": "Vladimir Barbarosh",
