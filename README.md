@@ -5,7 +5,7 @@ For debugging purposes only.
 
 ## Installation
 
-    composer require --save-dev vbarbarosh/laravel-debug-eval
+    composer require vbarbarosh/laravel-debug-eval
 
 ## Usage in Laravel
 
