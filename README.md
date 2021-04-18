@@ -1,5 +1,5 @@
-A rudimentary UI and backend for evaluating on a remote host. For
-debugging purposes only.
+A rudimentary UI and backend for evaluating PHP remotely.
+For debugging purposes only.
 
 ## Installation
 
