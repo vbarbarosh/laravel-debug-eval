@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# http://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -o nounset -o errexit -o pipefail
+
+script=`realpath $0`
+scriptdir=`dirname $script`
+scriptname=`basename $script`
+
+cd $scriptdir/..
+
+# `tar -czh . | docker build -` does not work in MacOS
+# https://stackoverflow.com/a/62915644/1478566
+tar -ch --exclude=fs/app/laravel-debug-eval/docker-laravel-apache . | docker build - -t laravel-debug-eval:latest

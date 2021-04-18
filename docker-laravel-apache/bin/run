@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# http://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -o nounset -o errexit -o pipefail -m
+
+script=`realpath $0`
+scriptdir=`dirname $script`
+scriptname=`basename $script`
+
+cd $scriptdir/..
+
+base=http://127.0.0.1:3000
+
+bin/build
+
+docker run --rm -p 3000:80 laravel-debug-eval &
+
+while true; do
+    if curl -sf $base -o /dev/stdout; then
+        break
+    fi
+    echo Waiting for $base...
+    sleep 0.1s
+done
+
+xdg-open $base/index.php/laravel-debug-eval
+fg

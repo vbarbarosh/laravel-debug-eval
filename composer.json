@@ -1,0 +1,19 @@
+{
+    "name": "vbarbarosh/laravel-debug-eval",
+    "version": "1.0.0",
+    "description": "A rudimentary UI with backend for evaluating PHP remotely. For debugging purposes only.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Vladimir Barbarosh",
+            "email": "vladimir.barbarosh@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0"
+    },
+    "autoload": {
+        "files": ["src/functions.php"]
+    }
+}
