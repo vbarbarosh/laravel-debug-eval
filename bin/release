@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# http://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -o nounset -o errexit -o pipefail
+
+script=`realpath $0`
+scriptdir=`dirname $script`
+scriptname=`basename $script`
+
+cd $scriptdir/..
+
+case "${1-}"  in
+major|minor|patch)
+    ;;
+*)
+    echo usage: release 'major|minor|patch' 2>&1
+    exit 1
+    ;;
+esac
+
+if test -n "`git status -s`"; then
+    echo error: there is changes 2>&1
+    exit 1
+fi
+
+# Yep, this is a hack
+rm -f package.json
+ln -s composer.json package.json
+trap "rm -f $scriptdir/../package.json" EXIT
+
+# Increase a version without commiting it and making a tag
+npm version $1 --no-git-tag-version
+git add composer.json
+git commit -m "release v$(node -e 'console.log(require("./package.json").version)')"
+# Create a tag
+git tag v$(node -e 'console.log(require("./package.json").version)')
