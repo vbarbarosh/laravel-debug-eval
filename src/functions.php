@@ -6,6 +6,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
 function laravel_debug_eval($options = [])
@@ -38,7 +39,7 @@ function laravel_debug_eval($options = [])
             $s = "$use;$php;";
             Log::info(sprintf('[laravel_debug_eval] %s', json_encode($s, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)));
             $ret = (function () use ($s) { return eval($s); })();
-            if ($ret instanceof Response) {
+            if ($ret instanceof Response || $ret instanceof BinaryFileResponse) {
                 ob_clean();
                 return $ret;
             }
