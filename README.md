@@ -16,4 +16,4 @@ For debugging purposes only.
 
 ## Credits
 
-* Right pannel with a list of snippets Expired by https://github.com/tinkerun/tinkerun
+* Right pannel with a list of snippets was expired by https://github.com/tinkerun/tinkerun
