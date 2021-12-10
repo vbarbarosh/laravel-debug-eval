@@ -13,3 +13,7 @@ For debugging purposes only.
         // 1. Ensure that current user has access to this endpoint
         return vbarbarosh\laravel_debug_eval();
     });
+
+## Credits
+
+* Right pannel with a list of snippets Expired by https://github.com/tinkerun/tinkerun
