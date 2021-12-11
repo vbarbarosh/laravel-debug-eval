@@ -57,22 +57,40 @@ function laravel_debug_eval($options = [])
         return redirect(request()->fullUrl());
     }
 
+    $snippets = [];
+    foreach (glob(base_path('snippets/*')) as $file) {
+        $snippets[] = ['title' => basename($file, '.php'), 'body' => file_get_contents($file)];
+    }
+
     ob_start();
 ?>
     <!DOCTYPE html>
+    <link href="https://unpkg.com/@vbarbarosh/smcss@0.6.2/dist/sm.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/theme/monokai.min.css">
     <style>
-        html { color: #C2C7A9; background: #403F33; }
+        html { color: #C2C7A9; background: #403F33; margin: 0; padding: 0; }
+        body { margin: 10px; }
         .CodeMirror { height: auto; }
         .CodeMirror-scroll { min-height: 100px; }
     </style>
+<?php if (count($snippets)): ?>
+    <div id="app" class="fix-r vsplit w400 m10">
+        <input v-model="filter" type="text" class="bbox ww mb10">
+        <ul class="fluid oa xm xp xls mg5">
+            <li v-for="snippet in snippets" v-on:click="click_snippet(snippet)" v-bind:key="snippet.title" class="cur-pointer">
+                {{ snippet.title }}
+            </li>
+        </ul>
+    </div>
+<form method="POST" enctype="multipart/form-data" style="margin-right:410px;">
+<?php endif ?>
     <form method="POST" enctype="multipart/form-data">
     <?php echo csrf_field() ?>
-    <textarea name="php" style="display: none;"><?php $e(Cache::get("$cache_prefix:php")) ?></textarea>
-    <br>
-    <button>Submit</button>
-    <!--</form>-->
+        <textarea name="php" style="display: none;"><?php $e(Cache::get("$cache_prefix:php")) ?></textarea>
+        <br>
+        <button>Submit</button>
+    </form>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/php/php.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/xml/xml.min.js"></script>
@@ -80,8 +98,9 @@ function laravel_debug_eval($options = [])
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/css/css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/htmlmixed/htmlmixed.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/clike/clike.min.js"></script>
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
     <script>
-        CodeMirror.fromTextArea(document.querySelector('textarea'), {
+        const editor = CodeMirror.fromTextArea(document.querySelector('textarea'), {
             mode: 'text/x-php',
             theme: 'monokai',
             indentUnit: 4,
@@ -100,6 +119,36 @@ function laravel_debug_eval($options = [])
             }
         });
     </script>
+<?php if (count($snippets)): ?>
+    <script>
+    new Vue({
+        el: '#app',
+        data: {
+            filter: localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] || '',
+            snippets_orig: <?php echo json_encode($snippets) ?>,
+        },
+        computed: {
+            snippets: function () {
+                const _this = this;
+                return this.snippets_orig.filter(function (snippet) {
+                    return snippet.title.includes(_this.filter.toLowerCase());
+                });
+            },
+        },
+        watch: {
+            filter: function (next) {
+                localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] = next;
+            },
+        },
+        methods: {
+            click_snippet: function (snippet) {
+                editor.setValue(snippet.body);
+                editor.focus();
+            },
+        },
+    });
+    </script>
+<?php endif ?>
 <?php
     $result = Cache::pull("$cache_prefix:result");
     if (isset($result['time'])) {
