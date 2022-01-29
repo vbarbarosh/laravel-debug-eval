@@ -83,14 +83,15 @@ function laravel_debug_eval($options = [])
             </li>
         </ul>
     </div>
-<form method="POST" enctype="multipart/form-data" style="margin-right:410px;">
 <?php endif ?>
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" style="margin-right:410px;">
     <?php echo csrf_field() ?>
         <textarea name="php" style="display: none;"><?php $e(Cache::get("$cache_prefix:php")) ?></textarea>
         <br>
         <button>Submit</button>
-    </form>
+    <!-- Leaving FORM element opened allows snippets to have the following: -->
+    <!-- <input name="user" /><input type="submit" /> -->
+    <!-- </form> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/php/php.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/xml/xml.min.js"></script>
