@@ -52,6 +52,7 @@ function laravel_debug_eval($options = [])
         }
         Cache::forever("$cache_prefix:result", [
             'time' => sprintf('%ssec', number_format(microtime(true) - $begin, 4)),
+            'memory' => sprintf('%sM', number_format(memory_get_peak_usage()/1024/1024, 2)),
             'html' => ob_get_clean(),
         ]);
         return redirect(request()->fullUrl());
@@ -152,8 +153,9 @@ function laravel_debug_eval($options = [])
 <?php endif ?>
 <?php
     $result = Cache::pull("$cache_prefix:result");
-    if (isset($result['time'])) {
-        echo "<pre>{$result['time']}</pre>";
+    $resources = trim(($result['time'] ?? '') . ' ' . ($result['memory'] ?? ''));
+    if ($resources) {
+        echo "<pre>$resources</pre>";
     }
     echo $result['html'] ?? null;
 ?>
