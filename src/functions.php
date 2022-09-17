@@ -59,20 +59,22 @@ function laravel_debug_eval($options = [])
     }
 
     $snippets = [];
-
-    $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(base_path('snippets')));
-    foreach ($it as $file) {
-        /** @var SplFileInfo $file */
-        if ($file->isDir()) {
-            continue;
+    $snipppets_dir = base_path('snippets');
+    if (is_dir($snipppets_dir)) {
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($snipppets_dir));
+        foreach ($it as $file) {
+            /** @var SplFileInfo $file */
+            if ($file->isDir()) {
+                continue;
+            }
+            $snippets[] = ['title' => $it->getSubPathName(), 'body' => file_get_contents($file->getPathname())];
         }
-        $snippets[] = ['title' => $it->getSubPathName(), 'body' => file_get_contents($file->getPathname())];
+        usort($snippets, function ($a, $b) {
+            $aa = str_contains($a['title'], '/') ? 0 : 1;
+            $bb = str_contains($b['title'], '/') ? 0 : 1;
+            return $aa - $bb ?: strcmp($a['title'], $b['title']);
+        });
     }
-    usort($snippets, function ($a, $b) {
-        $aa = str_contains($a['title'], '/') ? 0 : 1;
-        $bb = str_contains($b['title'], '/') ? 0 : 1;
-        return $aa - $bb ?: strcmp($a['title'], $b['title']);
-    });
 
     ob_start();
 ?>
