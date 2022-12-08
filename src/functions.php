@@ -20,6 +20,7 @@ function laravel_debug_eval($options = [])
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // NOTE `session()->put(__METHOD__, str_random(64*1024))` will perform logout
         Cache::forever("$cache_prefix:php", $_POST['php']);
+        Cache::forever("$cache_prefix:vars", array_diff_key($_POST, ['_token' => 1, 'php' => 1]));
         $begin = microtime(true);
         try {
             ob_start();
@@ -85,27 +86,70 @@ function laravel_debug_eval($options = [])
     <style>
         html { color: #C2C7A9; background: #403F33; margin: 0; padding: 0; }
         body { margin: 10px; }
+        button { cursor: pointer; }
         .CodeMirror { height: auto; }
         .CodeMirror-scroll { min-height: 100px; }
+        .w400 { width: 400px; }
+        .z1000 { z-index: 1000; }
+        .xborder-table,
+        .xborder-table td,
+        .xborder-table th { boder: none; }
     </style>
-<?php if (count($snippets)): ?>
-    <div id="app" class="fix-r vsplit w400 m10">
-        <input v-model="filter" type="text" class="bbox ww mb10">
-        <ul class="fluid oa xm xp xls mg5">
-            <li v-for="snippet in snippets" v-on:click="click_snippet(snippet)" v-bind:key="snippet.title" class="cur-pointer">
-                {{ snippet.title }}
-            </li>
-        </ul>
-    </div>
-<?php endif ?>
-    <form method="POST" enctype="multipart/form-data" style="margin-right:410px;">
+
+    <form ref="form" method="POST" enctype="multipart/form-data">
     <?php echo csrf_field() ?>
-        <textarea name="php" style="display: none;"><?php $e(Cache::get("$cache_prefix:php")) ?></textarea>
-        <br>
-        <button>Submit</button>
+
+    <div v-show="true" id="app" style="display:none;">
+        <div>
+            <input v-model="php" name="php" type="hidden">
+            <div class="black">
+                <table class="xborder-table">
+                <tbody>
+                <tr v-for="var_name in var_names">
+                    <td>
+                        <label v-bind:for="var_name.replace(':', '-')" class="db cur-pointer">
+                            {{ var_name.substr(6) }}
+                        </label>
+                    </td>
+                    <td>
+                        <input v-model="var_values[var_name]" v-bind:name="var_name" v-bind:id="var_name.replace(':', '-')" type="text">
+                    </td>
+                </tr>
+                </tbody>
+                </table>
+            </div>
+            <vue-codemirror v-model="php" v-on:ctrl-enter="ctrl_enter_codemirror"></vue-codemirror>
+            <br>
+            <button type="submit">Submit</button>
+        </div>
+        <div v-bind:class="{w400: is_sidebar_visible}" class="abs-r r10 mv10">
+            <button v-on:click="click_toggle_sidebar" class="abs-tr z1000" type="button">sidebar</button>
+            <template v-if="is_sidebar_visible">
+                <input v-model="filter" type="text" class="bbox ww mb10">
+                <ul class="fluid oa xm xp xls pg5">
+                    <li v-for="snippet in snippets" v-on:click="click_snippet(snippet)" v-bind:key="snippet.title" class="cur-pointer">
+                        {{ snippet.title }}
+                    </li>
+                </ul>
+            </template>
+        </div>
+    </div>
+
+    <div class="oa">
+        <?php
+        $result = Cache::pull("$cache_prefix:result");
+        $resources = trim(($result['time'] ?? '') . ' ' . ($result['memory'] ?? ''));
+        if ($resources) {
+            echo "<pre>$resources</pre>";
+        }
+        echo $result['html'] ?? null;
+        ?>
+    </div>
+
     <!-- Leaving FORM element opened allows snippets to have the following: -->
     <!-- <input name="user" /><input type="submit" /> -->
     <!-- </form> -->
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/php/php.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/xml/xml.min.js"></script>
@@ -113,65 +157,243 @@ function laravel_debug_eval($options = [])
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/css/css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/htmlmixed/htmlmixed.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/mode/clike/clike.min.js"></script>
-    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue@2.7.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/jquery@3.6.1/dist/jquery.js"></script>
     <script>
-        const editor = CodeMirror.fromTextArea(document.querySelector('textarea'), {
-            mode: 'text/x-php',
-            theme: 'monokai',
-            indentUnit: 4,
-            tabSize: 4,
-            indentWithTabs: false,
-            lineNumbers: true,
-            autofocus: true,
-            viewportMargin: Infinity,
-            readOnly: false,
-            extraKeys: {
-                'Tab': 'indentMore',
-                'Shift-Tab': 'indentLess',
-                'Ctrl-Enter': function () {
-                    document.querySelector('form').submit();
+        (function () {
+            const listeners = [];
+            const listeners_jquery = {
+                mouseup: () => setTimeout(check, 0),
+            };
+            let timer = null;
+
+            /**
+             * Notes
+             * Will not work for `fixed` elements.
+             *
+             * Credits
+             * https://stackoverflow.com/a/21696585/1478566
+             *
+             * @param elem
+             * @returns {boolean}
+             */
+            function elem_is_visible(elem)
+            {
+                return elem.offsetParent !== null;
+            }
+
+            /**
+             * Fire an event when an element become visible (once for
+             * each transition hidden -> visible).
+             */
+            function trigger_from_elem_visible(elem, callback)
+            {
+                attach(elem, callback);
+                return {off: () => detach(elem, callback)};
+            }
+
+            function attach(elem, callback)
+            {
+                let i = listeners.findIndex(v => v.elem === elem);
+                if (i == -1) {
+                    i = listeners.push({elem, visibility: null, callbacks: []}) - 1;
+                }
+                listeners[i].callbacks.push(callback);
+                if (listeners.length == 1) {
+                    jQuery(document).on(listeners_jquery);
+                    timer = setInterval(check, 250);
                 }
             }
+
+            function detach(elem, callback)
+            {
+                const i = listeners.findIndex(v => v.elem === elem);
+                if (i != -1) {
+                    const row = listeners[i];
+                    const j = row.callbacks.indexOf(callback);
+                    if (j != -1) {
+                        if (row.callbacks.length > 1) {
+                            row.callbacks.splice(j, 1);
+                        }
+                        else {
+                            listeners.splice(i, 1);
+                            if (listeners.length == 0) {
+                                jQuery(document).off(listeners_jquery);
+                                clearInterval(timer);
+                                timer = null;
+                            }
+                        }
+                    }
+                }
+            }
+
+            function check()
+            {
+                for (let i = 0, end = listeners.length; i < end; ++i) {
+                    const row = listeners[i];
+                    const visible = elem_is_visible(row.elem);
+                    if (row.visibility != visible) {
+                        row.visibility = visible;
+                        if (visible) {
+                            row.callbacks.forEach(notify);
+                        }
+                    }
+                }
+            }
+
+            function notify(cb)
+            {
+                try {
+                    cb();
+                }
+                catch (error) {
+                    if (__DEV__) {
+                        console.error('[trigger_from_element_visible] notify failed', error);
+                    }
+                }
+            }
+
+            window.trigger_from_elem_visible = trigger_from_elem_visible;
+        })();
+
+        Vue.mixin({
+            methods: {
+                px: function (value) {
+                    return value ? `${value}px` : '0';
+                },
+                emit_input: function (...args) {
+                    this.$emit('input', ...args);
+                },
+            },
+        });
+
+        Vue.component('vue-codemirror', {
+            template: '<div v-once />',
+            props: ['value', 'mode', 'placeholder', 'autofocus'],
+            data: function () {
+                return {
+                    orig: this.value
+                };
+            },
+            watch: {
+                value: function () {
+                    if (this.editor && this.value !== this.orig) {
+                        this.info('setValue', this.value);
+                        this.editor.setValue(this.value);
+                    }
+                }
+            },
+            methods: {
+                api_replaceSelection: function (text) {
+                    this.editor.replaceSelection(text);
+                },
+                info: function (...args) {
+                    // if (__DEV__) {
+                    //     console.log(`[${this.$options._componentTag}-${this.uid()}]`, ...args);
+                    // }
+                },
+                become_visible: function () {
+                    this.info('become_visible');
+                    this.editor ? this.editor.refresh() : this.ready();
+                },
+                ready: function () {
+                    const _this = this;
+                    this.info('ready');
+                    // const mode = (this.mode == 'html') ? {mode: 'xml', htmlMode: true} : {mode: this.mode};
+                    const autofocus = typeof this.autofocus == 'string' ? true : !!this.autofocus;
+                    this.editor = CodeMirror(this.$el, {
+                        mode: 'text/x-php',
+                        theme: 'monokai',
+                        indentUnit: 4,
+                        tabSize: 4,
+                        indentWithTabs: false,
+                        lineNumbers: true,
+                        autofocus: true,
+                        viewportMargin: Infinity,
+                        readOnly: false,
+                        extraKeys: {
+                            'Tab': 'indentMore',
+                            'Shift-Tab': 'indentLess',
+                            'Ctrl-Enter': function () {
+                                _this.$emit('ctrl-enter');
+                            },
+                        },
+                        value: this.value || '',
+                        placeholder: this.placeholder || '',
+                        autofocus,
+                        // ...mode,
+                    });
+                    this.editor.on('change', this.change);
+                    this.$once('hook:beforeDestroy', this.clean);
+                    if (autofocus) {
+                        jQuery(this.$el).closest('.modal').one('shown.bs.modal', () => this.editor.focus());
+                    }
+                },
+                clean: function () {
+                    this.info('clean');
+                    this.editor.off('change', this.change);
+                    this.editor = null;
+                },
+                change: function () {
+                    this.info('change');
+                    this.orig = this.editor.getValue();
+                    this.emit_input(this.orig);
+                },
+            },
+            mounted: function () {
+                this.info('mounted');
+                this.$once('hook:beforeDestroy', trigger_from_elem_visible(this.$el, this.become_visible).off);
+            },
+        });
+
+        new Vue({
+            el: '#app',
+            data: {
+                is_sidebar_visible: !!localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_SIDEBAR'],
+                php: <?php echo json_encode(Cache::get("$cache_prefix:php")) ?>,
+                filter: localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] || '',
+                snippets_orig: <?php echo json_encode($snippets) ?>,
+                var_values: <?php echo json_encode(Cache::get("$cache_prefix:vars", [])) ?>,
+            },
+            computed: {
+                var_names: function () {
+                    const names = (this.php.match(/\$_POST\[(['"])input:([^']+)\1\]/g) || []).map(v => v.substr(8, v.length - 10));
+                    const unique = {};
+                    names.forEach(v => unique[v] = v);
+                    return Object.values(unique);
+                },
+                snippets: function () {
+                    const _this = this;
+                    return this.snippets_orig.filter(function (snippet) {
+                        return snippet.title.includes(_this.filter.toLowerCase());
+                    });
+                },
+            },
+            watch: {
+                filter: function (next) {
+                    localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] = next;
+                },
+                is_sidebar_visible: {
+                    immediate: true,
+                    handler: function (next) {
+                        localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_SIDEBAR'] = next ? '1' : '';
+                        jQuery('body').css({paddingRight: next ? 410 : 0});
+                    },
+                },
+            },
+            methods: {
+                ctrl_enter_codemirror: function () {
+                    document.querySelector('form').submit();
+                },
+                click_toggle_sidebar: function () {
+                    this.is_sidebar_visible = !this.is_sidebar_visible;
+                },
+                click_snippet: function (snippet) {
+                    this.php = snippet.body;
+                },
+            },
         });
     </script>
-<?php if (count($snippets)): ?>
-    <script>
-    new Vue({
-        el: '#app',
-        data: {
-            filter: localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] || '',
-            snippets_orig: <?php echo json_encode($snippets) ?>,
-        },
-        computed: {
-            snippets: function () {
-                const _this = this;
-                return this.snippets_orig.filter(function (snippet) {
-                    return snippet.title.includes(_this.filter.toLowerCase());
-                });
-            },
-        },
-        watch: {
-            filter: function (next) {
-                localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] = next;
-            },
-        },
-        methods: {
-            click_snippet: function (snippet) {
-                editor.setValue(snippet.body);
-                editor.focus();
-            },
-        },
-    });
-    </script>
-<?php endif ?>
-<?php
-    $result = Cache::pull("$cache_prefix:result");
-    $resources = trim(($result['time'] ?? '') . ' ' . ($result['memory'] ?? ''));
-    if ($resources) {
-        echo "<pre>$resources</pre>";
-    }
-    echo $result['html'] ?? null;
-?>
     <script>
         // https://laracasts.com/discuss/channels/general-discussion/expanding-dd-vardumper-by-default?page=1#reply=139959
         (function () {
