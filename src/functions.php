@@ -350,7 +350,7 @@ function laravel_debug_eval($options = [])
             el: '#app',
             data: {
                 is_sidebar_visible: !!localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_SIDEBAR'],
-                php: <?php echo json_encode(Cache::get("$cache_prefix:php")) ?>,
+                php: <?php echo json_encode(strval(Cache::get("$cache_prefix:php"))) ?>,
                 filter: localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] || '',
                 snippets_orig: <?php echo json_encode($snippets) ?>,
                 var_values: <?php echo json_encode(Cache::get("$cache_prefix:vars", [])) ?>,
