@@ -93,7 +93,7 @@ function laravel_debug_eval($options = [])
         .z1000 { z-index: 1000; }
         .xborder-table,
         .xborder-table td,
-        .xborder-table th { boder: none; }
+        .xborder-table th { border: none; }
     </style>
 
     <form ref="form" method="POST" enctype="multipart/form-data">
