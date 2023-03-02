@@ -80,7 +80,7 @@ function laravel_debug_eval($options = [])
     ob_start();
 ?>
     <!DOCTYPE html>
-    <link href="https://unpkg.com/@vbarbarosh/smcss@0.6.2/dist/sm.css" rel="stylesheet">
+    <link href="https://unpkg.com/@vbarbarosh/smcss@0.8.2/dist/sm.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.44.0/theme/monokai.min.css">
     <style>
