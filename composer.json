@@ -1,6 +1,6 @@
 {
     "name": "vbarbarosh/laravel-debug-eval",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "A rudimentary UI with backend for evaluating PHP remotely. For debugging purposes only.",
     "type": "library",
     "license": "MIT",
