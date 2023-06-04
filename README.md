@@ -16,7 +16,7 @@ For debugging purposes only.
 
 ## YouTube
 
-[![ALT](https://img.youtube.com/vi/gSofz-bkuCs/0.jpg)]([https://www.youtube.com/watch?v=gSofz-bkuCs](https://www.youtube.com/watch?v=gSofz-bkuCs))
+[![ALT](https://img.youtube.com/vi/gSofz-bkuCs/0.jpg)](https://www.youtube.com/watch?v=gSofz-bkuCs)
 
 ## Credits
 
