@@ -14,6 +14,10 @@ For debugging purposes only.
         return vbarbarosh\laravel_debug_eval();
     });
 
+## YouTube
+
+[![ALT](https://img.youtube.com/vi/gSofz-bkuCs/0.jpg)]([https://www.youtube.com/watch?v=YOUTUBE_VIDEO_ID_HERE](https://www.youtube.com/watch?v=gSofz-bkuCs))
+
 ## Credits
 
 * Right pannel with a list of snippets was expired by https://github.com/tinkerun/tinkerun
