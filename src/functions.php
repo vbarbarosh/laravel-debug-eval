@@ -29,13 +29,15 @@ function laravel_debug_eval($options = [])
 
             // Render a prefix appended to a string typed by user
             $use = 'use Carbon\\Carbon;';
-            foreach (glob(app_path('/*.php')) as $path) {
+            foreach (glob(app_path('*.php')) as $path) {
                 if (ends_with($path, 'test.php')) {
                     continue;
                 }
-                $use .= sprintf("use App\\%s;\n", basename($path, '.php'));
+                $use .= sprintf("use App\\%s;", basename($path, '.php'));
             }
-            $use .= "// -------\n\n";
+            foreach (glob(app_path('Models/*.php')) as $path) {
+                $use .= sprintf("use App\\Models\\%s;", basename($path, '.php'));
+            }
 
             $s = "$use;$php;";
             Log::info(sprintf('[laravel_debug_eval] %s', json_encode($s, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)));
