@@ -1,5 +1,4 @@
-A rudimentary UI and backend for evaluating PHP remotely.
-For debugging purposes only.
+A UI and backend for evaluating PHP remotely.  For debugging purposes only.
 
 ![cover](cover.png)
 
@@ -20,4 +19,4 @@ For debugging purposes only.
 
 ## Credits
 
-* Right pannel with a list of snippets was expired by https://github.com/tinkerun/tinkerun
+* Right pannel with a list of snippets was inspired by https://github.com/tinkerun/tinkerun
