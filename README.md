@@ -19,4 +19,4 @@ A UI and backend for evaluating PHP remotely.  For debugging purposes only.
 
 ## Credits
 
-* Right pannel with a list of snippets was inspired by https://github.com/tinkerun/tinkerun
+* Right panel with a list of snippets was inspired by https://github.com/tinkerun/tinkerun
