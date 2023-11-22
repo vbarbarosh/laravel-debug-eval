@@ -38,6 +38,7 @@ function laravel_debug_eval($options = [])
             foreach (glob(app_path('Models/*.php')) as $path) {
                 $use .= sprintf("use App\\Models\\%s;", basename($path, '.php'));
             }
+            $use .= "use function vbarbarosh\laravel_debug_eval_longrun as longrun;\n";
 
             $s = "$use;$php;";
             Log::info(sprintf('[laravel_debug_eval] %s', json_encode($s, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)));
@@ -408,4 +409,49 @@ function laravel_debug_eval($options = [])
     </script>
 <?php
     return ob_get_clean();
+}
+
+function laravel_debug_eval_longrun(array $params)
+{
+    $job = $params['job'] ?? 'any';
+    $key = 'laravel_debug_eval_longrun' . (Auth::check() ? Auth::user()->getAuthIdentifier() : 0);
+
+    $storage = cache()->get($key);
+    if (!isset($storage['job']) || $storage['job'] !== $job) {
+        $items = collect(call_user_func($params['init']))->toArray();
+        $storage = [
+            'job' => $job,
+            'items' => $items,
+            'total' => count($items),
+            'done' => 0,
+        ];
+        cache()->put($key, $storage);
+        dump([
+            'total' => $storage['total'],
+            'done' => $storage['done'],
+            'remained' => count($storage['items']),
+        ]);
+    }
+    else if (count($storage['items'])) {
+        dump([
+            'total' => $storage['total'],
+            'done' => $storage['done'],
+            'remained' => count($storage['items']),
+        ]);
+        $items = array_splice($storage['items'], 0, $params['chunk'] ?? 100);
+        call_user_func($params['run'], $items);
+        $storage['done'] += count($items);
+        cache()->put($key, $storage);
+    }
+    else {
+        dump([
+            'total' => $storage['total'],
+            'done' => $storage['done'],
+            'remained' => count($storage['items']),
+        ]);
+        call_user_func($params['done'] ?? function () {});
+        cache()->delete($key);
+        return;
+    }
+    echo '<script>setTimeout(() => document.querySelector("form").submit(), ', ($params['refresh'] ?? 2000),')</script>';
 }

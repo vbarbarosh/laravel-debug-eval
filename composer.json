@@ -17,12 +17,15 @@
         }
     ],
     "require": {
-        "php": ">=7.0",
+        "php": "^8.1",
         "ext-json": "*"
     },
     "autoload": {
         "files": [
             "src/functions.php"
         ]
+    },
+    "require-dev": {
+        "laravel/framework": "8.83.27"
     }
 }
