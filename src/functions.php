@@ -411,6 +411,23 @@ function laravel_debug_eval($options = [])
     return ob_get_clean();
 }
 
+/**
+ * laravel_debug_eval([
+ *     'job' => '2023/11/24 09:51:38',
+ *     'chunk' => 50,
+ *     'refresh' => 2000, // Automatically submit form after this amount of milliseconds
+ *     'acc' => 0, // Intermediate value which will be stored between `run` (`[].reduce` in javascript)
+ *     'init' => function ($acc) {
+ *         // fetch all items which will be passed to `run` handler one `chunk` at a time
+ *         return Article::query()->pluck('id');
+ *     },
+ *     'done' => function ($acc) {},
+ *     'run' => function ($chunk, $acc) {
+ *         // do job
+ *         return $acc + count($chunk);
+ *     },
+ * ])
+ */
 function laravel_debug_eval_longrun(array $params)
 {
     $job = $params['job'] ?? 'any';
@@ -418,15 +435,17 @@ function laravel_debug_eval_longrun(array $params)
 
     $storage = cache()->get($key);
     if (!isset($storage['job']) || $storage['job'] !== $job) {
-        $items = collect(call_user_func($params['init']))->toArray();
+        $items = collect(call_user_func($params['init'], $params['acc'] ?? null))->toArray();
         $storage = [
             'job' => $job,
             'items' => $items,
             'total' => count($items),
             'done' => 0,
+            'acc' => $params['acc'] ?? null,
         ];
         cache()->put($key, $storage);
         dump([
+            'acc' => $storage['acc'],
             'total' => $storage['total'],
             'done' => $storage['done'],
             'remained' => count($storage['items']),
@@ -434,17 +453,19 @@ function laravel_debug_eval_longrun(array $params)
     }
     else if (count($storage['items'])) {
         dump([
+            'acc' => $storage['acc'],
             'total' => $storage['total'],
             'done' => $storage['done'],
             'remained' => count($storage['items']),
         ]);
         $items = array_splice($storage['items'], 0, $params['chunk'] ?? 100);
-        call_user_func($params['run'], $items);
+        $storage['acc'] = call_user_func($params['run'], $items, $storage['acc']);
         $storage['done'] += count($items);
         cache()->put($key, $storage);
     }
     else {
         dump([
+            'acc' => $storage['acc'],
             'total' => $storage['total'],
             'done' => $storage['done'],
             'remained' => count($storage['items']),
