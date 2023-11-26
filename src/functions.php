@@ -412,6 +412,7 @@ function laravel_debug_eval($options = [])
 }
 
 /**
+ * ```php
  * laravel_debug_eval([
  *     'job' => '2023/11/24 09:51:38',
  *     'chunk' => 50,
@@ -427,6 +428,7 @@ function laravel_debug_eval($options = [])
  *         return $acc + count($chunk);
  *     },
  * ])
+ * ```
  */
 function laravel_debug_eval_longrun(array $params)
 {
