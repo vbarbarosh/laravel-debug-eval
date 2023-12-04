@@ -472,7 +472,7 @@ function laravel_debug_eval_longrun(array $params)
             'done' => $storage['done'],
             'remained' => count($storage['items']),
         ]);
-        call_user_func($params['done'] ?? function () {});
+        call_user_func($params['done'] ?? function () {}, $storage['acc']);
         cache()->delete($key);
         return;
     }
