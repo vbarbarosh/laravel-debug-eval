@@ -121,12 +121,15 @@ function laravel_debug_eval($options = [])
                 </tbody>
                 </table>
             </div>
-            <vue-codemirror v-model="php" v-on:ctrl-enter="ctrl_enter_codemirror"></vue-codemirror>
+            <vue-codemirror v-if="is_editor_visible" v-model="php" v-on:ctrl-enter="ctrl_enter_codemirror"></vue-codemirror>
             <br>
             <button type="submit">Submit</button>
         </div>
         <div v-bind:class="{w400: is_sidebar_visible}" class="abs-r r10 mv10">
-            <button v-on:click="click_toggle_sidebar" class="abs-tr z1000" type="button">sidebar</button>
+            <div class="abs-tr z1000 mi5 nowrap">
+                <button v-on:click="click_toggle_editor" type="button">editor</button>
+                <button v-on:click="click_toggle_sidebar" type="button">sidebar</button>
+            </div>
             <template v-if="is_sidebar_visible">
                 <input v-model="filter" type="text" class="bbox ww mb10">
                 <ul class="fluid oa xm xp xls pg5">
@@ -349,10 +352,15 @@ function laravel_debug_eval($options = [])
             },
         });
 
+        if (localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_EDITOR'] === undefined) {
+            localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_EDITOR'] = '1';
+        }
+
         new Vue({
             el: '#app',
             data: {
                 is_sidebar_visible: !!localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_SIDEBAR'],
+                is_editor_visible: !!localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_EDITOR'],
                 php: <?php echo json_encode(strval(Cache::get("$cache_prefix:php"))) ?>,
                 filter: localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] || '',
                 snippets_orig: <?php echo json_encode($snippets) ?>,
@@ -383,6 +391,12 @@ function laravel_debug_eval($options = [])
                         jQuery('body').css({paddingRight: next ? 410 : 0});
                     },
                 },
+                is_editor_visible: {
+                    immediate: true,
+                    handler: function (next) {
+                        localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_EDITOR'] = next ? '1' : '';
+                    },
+                },
             },
             methods: {
                 ctrl_enter_codemirror: function () {
@@ -390,6 +404,9 @@ function laravel_debug_eval($options = [])
                 },
                 click_toggle_sidebar: function () {
                     this.is_sidebar_visible = !this.is_sidebar_visible;
+                },
+                click_toggle_editor: function () {
+                    this.is_editor_visible = !this.is_editor_visible;
                 },
                 click_snippet: function (snippet) {
                     this.php = snippet.body;
