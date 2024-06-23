@@ -454,7 +454,14 @@ function laravel_debug_eval_longrun(array $params)
 
     $storage = cache()->get($key);
     if (!isset($storage['job']) || $storage['job'] !== $job) {
-        $items = collect(call_user_func($params['init'], $params['acc'] ?? null))->toArray();
+        $items = call_user_func($params['init'], $params['acc'] ?? null);
+        if ($items === null) {
+            // Treat `null` as "not yet ready" marker. Useful when a snippet imports data from a file.
+            // In this case, the first time `init` methods was called, it will render a FORM and returns.
+            // After a user submits a file, it will be able to read it and return `items` to `longrun`.
+            return;
+        }
+        $items = collect($items)->toArray();
         $storage = [
             'job' => $job,
             'items' => $items,
