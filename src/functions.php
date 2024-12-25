@@ -124,6 +124,19 @@ function laravel_debug_eval($options = [])
             <vue-codemirror v-if="is_editor_visible" v-model="php" v-on:ctrl-enter="ctrl_enter_codemirror"></vue-codemirror>
             <br>
             <button type="submit">Submit</button>
+            <select v-model="auto_refresh.interval_ms">
+                <option v-bind:value="0">No auto refresh</option>
+                <option v-bind:value="1000">Auto refresh each 1s</option>
+                <option v-bind:value="2000">Auto refresh each 2s</option>
+                <option v-bind:value="3000">Auto refresh each 3s</option>
+                <option v-bind:value="4000">Auto refresh each 4s</option>
+                <option v-bind:value="5000">Auto refresh each 5s</option>
+                <option v-bind:value="10000">Auto refresh each 10s</option>
+                <option v-bind:value="15000">Auto refresh each 15s</option>
+            </select>
+            <span v-if="auto_refresh_running_time">
+                ⏳ {{ auto_refresh_running_time }}
+            </span>
         </div>
         <div v-bind:class="{w400: is_sidebar_visible}" class="abs-r r10 mv10">
             <div class="abs-tr z1000 mi5 nowrap">
@@ -141,7 +154,7 @@ function laravel_debug_eval($options = [])
         </div>
     </div>
 
-    <div class="oa">
+    <div id="results" class="oa">
         <?php
         $result = Cache::pull("$cache_prefix:result");
         $resources = trim(($result['time'] ?? '') . ' ' . ($result['memory'] ?? ''));
@@ -359,12 +372,18 @@ function laravel_debug_eval($options = [])
         new Vue({
             el: '#app',
             data: {
+                now: Date.now(),
                 is_sidebar_visible: !!localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_SIDEBAR'],
                 is_editor_visible: !!localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL_EDITOR'],
                 php: <?php echo json_encode(strval(Cache::get("$cache_prefix:php"))) ?>,
                 filter: localStorage['VBARBAROSH_LARAVEL_DEBUG_EVAL'] || '',
                 snippets_orig: <?php echo json_encode($snippets) ?>,
                 var_values: <?php echo json_encode(Cache::get("$cache_prefix:vars", [])) ?>,
+                auto_refresh: {
+                    started_at: null,
+                    updated_at: Date.now(),
+                    interval_ms: 0,
+                },
             },
             computed: {
                 var_names: function () {
@@ -378,6 +397,15 @@ function laravel_debug_eval($options = [])
                     return this.snippets_orig.filter(function (snippet) {
                         return snippet.title.includes(_this.filter.toLowerCase());
                     });
+                },
+                auto_refresh_running_time: function () {
+                    if (!this.auto_refresh.started_at) {
+                        return null;
+                    }
+                    const tmp = this.now - this.auto_refresh.started_at;
+                    const sec = tmp / 1000 % 60;
+                    const min = Math.floor(tmp / 1000 / 60);
+                    return `[0${min}:0${sec.toFixed(1)}]`.replace(/0(\d\d+)/g, '$1');
                 },
             },
             watch: {
@@ -399,6 +427,31 @@ function laravel_debug_eval($options = [])
                 },
             },
             methods: {
+                auto_refresh_tick: async function () {
+                    this.now = Date.now();
+                    if (!this.auto_refresh.interval_ms || this.auto_refresh.started_at) {
+                        return;
+                    }
+                    if (this.auto_refresh.updated_at + this.auto_refresh.interval_ms > Date.now()) {
+                        return;
+                    }
+                    this.auto_refresh.started_at = Date.now();
+                    try {
+                        const response = await jQuery.ajax({method: 'POST', data: jQuery('form').serialize()});
+                        const tmp = jQuery('<html>').html(response);
+                        if (jQuery('#results').html().trim()) {
+                            tmp.find('#results style').remove();
+                            tmp.find('#results script').remove();
+                            jQuery('#results').find('style').appendTo(jQuery('body'));
+                            jQuery('#results').find('script').appendTo(jQuery('body'));
+                        }
+                        jQuery('#results').replaceWith(tmp.find('#results'));
+                    }
+                    finally {
+                        this.auto_refresh.updated_at = Date.now();
+                        this.auto_refresh.started_at = null;
+                    }
+                },
                 ctrl_enter_codemirror: function () {
                     document.querySelector('form').submit();
                 },
@@ -411,6 +464,9 @@ function laravel_debug_eval($options = [])
                 click_snippet: function (snippet) {
                     this.php = snippet.body;
                 },
+            },
+            created: function () {
+                this.$once('hook:beforeDestroy', clearInterval.bind(null, setInterval(this.auto_refresh_tick, 100)));
             },
         });
     </script>
