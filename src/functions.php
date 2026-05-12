@@ -475,7 +475,7 @@ function laravel_debug_eval($options = [])
                 },
                 snippets: function () {
                     const filter = filter1_from_spec(this.filter.toLowerCase());
-                    return this.snippets_orig.filter(v => filter(v.title));
+                    return this.snippets_orig.filter(v => filter(v.title.toLowerCase()));
                 },
                 auto_refresh_running_time: function () {
                     if (!this.auto_refresh.started_at) {
