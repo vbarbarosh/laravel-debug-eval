@@ -603,37 +603,55 @@ function laravel_debug_eval_longrun(array $params)
             'total' => count($items),
             'done' => 0,
             'acc' => $params['acc'] ?? null,
+            'started_at' => time(),
         ];
         cache()->put($key, $storage);
-        dump([
-            'acc' => $storage['acc'],
-            'total' => $storage['total'],
-            'done' => $storage['done'],
-            'remained' => count($storage['items']),
-        ]);
+        dump(laravel_debug_eval_longrun_status($storage));
     }
     else if (count($storage['items'])) {
-        dump([
-            'acc' => $storage['acc'],
-            'total' => $storage['total'],
-            'done' => $storage['done'],
-            'remained' => count($storage['items']),
-        ]);
+        // A job started before started_at existed keeps timing from here on.
+        $storage['started_at'] ??= time();
+        dump(laravel_debug_eval_longrun_status($storage));
         $items = array_splice($storage['items'], 0, $params['chunk'] ?? 100);
         $storage['acc'] = call_user_func($params['run'], $items, $storage['acc']);
         $storage['done'] += count($items);
         cache()->put($key, $storage);
     }
     else {
-        dump([
-            'acc' => $storage['acc'],
-            'total' => $storage['total'],
-            'done' => $storage['done'],
-            'remained' => count($storage['items']),
-        ]);
+        $storage['started_at'] ??= time();
+        dump(laravel_debug_eval_longrun_status($storage));
         call_user_func($params['done'] ?? function () {}, $storage['acc']);
         cache()->delete($key);
         return;
     }
     echo '<script>setTimeout(() => document.querySelector("form").submit(), ', ($params['refresh'] ?? 2000),')</script>';
+}
+
+function laravel_debug_eval_longrun_status(array $storage)
+{
+    $done = $storage['done'];
+    $total = $storage['total'];
+    $remained = count($storage['items']);
+    $elapsed = time() - $storage['started_at'];
+    $percent = $total == 0 ? 100 : (int) floor(100 * $done / $total);
+    // ETA projects the average time per finished item over the remainder;
+    // before the first chunk finishes there is nothing to project from.
+    $eta = $done == 0 ? null : (int) round($elapsed / $done * $remained);
+    return [
+        'acc' => $storage['acc'],
+        'progress' => sprintf('%d/%d (%d%%)', $done, $total, $percent),
+        'elapsed' => laravel_debug_eval_format_duration($elapsed),
+        'eta' => $eta === null ? '?' : laravel_debug_eval_format_duration($eta),
+    ];
+}
+
+function laravel_debug_eval_format_duration($seconds)
+{
+    if ($seconds < 60) {
+        return sprintf('%ds', $seconds);
+    }
+    if ($seconds < 3600) {
+        return sprintf('%dm %02ds', intdiv($seconds, 60), $seconds % 60);
+    }
+    return sprintf('%dh %02dm %02ds', intdiv($seconds, 3600), intdiv($seconds, 60) % 60, $seconds % 60);
 }
